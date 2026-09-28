@@ -1,7 +1,7 @@
 import socket
 import queue
 import threading
-from constants import MAX_QUEUE_SIZE, TIMEOUT_MAX, PACKET_SIZE
+from src.constants import MAX_QUEUE_SIZE, TIMEOUT_MAX, PACKET_SIZE
 
 
 class PacketCapture:
