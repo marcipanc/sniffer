@@ -7,7 +7,7 @@ class PcapEncoder:
     def __init__(self): ...
 
     def encode(self, packet: bytes, snaplen: int = DEFAULT_SNAPLEN) -> bytes:
-        return self._packet_record(packet, snaplen) + packet
+        return self._packet_record(packet, snaplen) + packet[:snaplen]
 
     def header(self) -> bytes:
         return struct.pack(
