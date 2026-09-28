@@ -4,12 +4,17 @@ import struct
 
 
 class PcapEncoder:
-    def __init__(self): ...
+    """Encode common Ethernet packets into .pcap format.
+
+    Creates header for .pcap file and encodes each packet.
+    """
 
     def encode(self, packet: bytes, snaplen: int = DEFAULT_SNAPLEN) -> bytes:
+        """Encode single packet into .pcap format bytes stream"""
         return self._packet_record(packet, snaplen) + packet[:snaplen]
 
     def header(self) -> bytes:
+        """Create header for .pcap file."""
         return struct.pack(
             "<IHHIIII",
             0xA1B2C3D4,  # Magic number
@@ -22,6 +27,7 @@ class PcapEncoder:
         )
 
     def _packet_record(self, packet: bytes, snaplen: int) -> bytes:
+        """Create record for single packet."""
         ts = time.time()
         ts_sec = int(ts)
         ts_usec = int((ts - ts_sec) * 1_000_000)
