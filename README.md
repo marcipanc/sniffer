@@ -1,21 +1,26 @@
-Traffic sniffer. Version 0.1
+# Traffic Sniffer v0.1
 
-Description:
-This application is a simple sniffer designed to capture and write Internet packets.
+A CLI application designed to capture network traffic and save it in PCAP format
 
-Requirements:
-* Python version greater than 3.12
+## Requirements and Privileges
 
+* Python 3.12 or higher.
+* Root privileges (sudo) are required because the application utilizes raw sockets for packet capture
 
-Composition:
-* Console version: csniffer.py
-* Logic: src/
-* Tests: tests/
-  You can execute all tests in one go using the runtests.sh 
+## Project Structure
 
+* `csniffer.py` — Main console application entry point.
+* `src/` — Core logic and packet encoding.
+* `tests/` — Test suites. Run all tests simultaneously using ./runtests.sh
 
-Console version
-Launch help: sudo ./csniffer.py --help
-Launch example: sudo ./csniffer.py -c 10 -o out.pcap
+## Usage Examples
 
-Note: This program requires root privileges because it uses raw sockets
+View all available options and flags:
+```bash
+sudo ./csniffer.py --help
+```
+
+Capture 10 packets and save them to a file:
+```bash
+sudo ./csniffer.py -c 10 -o out.pcap
+```
