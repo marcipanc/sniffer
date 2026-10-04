@@ -131,7 +131,7 @@ def main():
         file = Path(file)
     count = args.count or 0
     verbose = args.verbose
-    target_protocols = [proto for proto in args.proto if args.proto]
+    target_protocols = [proto for proto in args.proto] if args.proto else []
 
     f = None
 
@@ -145,7 +145,7 @@ def main():
         if verbose:
             print(f"{'TTL':<6}{'Source IP':<18}{'Destination IP':<18}{'Protocol':<10}")
 
-        proceed_capturing(count, capture, encoder, target_protocols, file, verbose)
+        proceed_capturing(count, capture, encoder, target_protocols, f, verbose)
 
         capture.stop()
         if f:
