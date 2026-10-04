@@ -43,19 +43,22 @@ def parse_args():
     )
 
     parser.add_argument(
-        "-c", "--count", required=True, action="store", help="count of packets to write"
+        "-c", "--count", action="store", type=int, help="count of packets to write"
     )
 
     parser.add_argument(
         "-o",
         "--output",
-        required=True,
         type=str,
-        action="store",
         help="path to the file to write",
     )
 
     args = parser.parse_args()
+
+    if not args.verbose and not args.output:
+        parser.error(
+            "specify at least one of these flags: -v (--verbose) or -o (--output)"
+        )
 
     return args
 
@@ -91,36 +94,56 @@ def main():
     args = parse_args()
     capture = PacketCapture()
     encoder = PcapEncoder()
-    file = Path(args.output)
-    count = args.count
+
+    file = args.output
+    if file:
+        file = Path(file)
+
+    count = args.count or 0
     verbose = args.verbose
 
+    f = None
+
     try:
-        with open(file, "wb") as f:
+        if file:
+            f = open(file, "wb")
             f.write(encoder.header())
 
-            capture.start()
+        capture.start()
 
-            if verbose:
-                print(
-                    f"{'TTL':<6}{'Source IP':<18}{'Destination IP':<18}{'Protocol':<10}"
-                )
+        if verbose:
+            print(f"{'TTL':<6}{'Source IP':<18}{'Destination IP':<18}{'Protocol':<10}")
 
-            for _ in range(int(count)):
-                packet = capture.next_packet()
-                if not packet:
-                    raise ValueError("Packet was None")
+        captured = 0
+        while True:
+            if count > 0 and captured >= count:
+                break
+
+            packet = capture.next_packet()
+            if not packet:
+                raise ValueError("Packet was None")
+
+            if f:
                 f.write(encoder.encode(packet))
 
-                if verbose:
-                    proto, src, dst, ttl = parse_packet(packet)
-                    print(f"{ttl:<6}{src:<18}{dst:<18}{proto:<10}")
+            if verbose:
+                proto, src, dst, ttl = parse_packet(packet)
+                print(f"{ttl:<6}{src:<18}{dst:<18}{proto:<10}")
 
-            capture.stop()
+            captured += 1
+
+        capture.stop()
+        if f:
+            f.close()
 
     except (FileNotFoundError, ValueError, RuntimeError) as e:
         print(f"\nError: {e}", file=sys.stderr)
         sys.exit(ERROR_EXCEPTION)
+
+    finally:
+        capture.stop()
+        if f:
+            f.close()
 
 
 if __name__ == "__main__":
