@@ -97,6 +97,30 @@ def parse_packet(packet: bytes):
     return proto_name, src_ip, dst_ip, ttl
 
 
+def proceed_capturing(count, capture, encoder, target_protocols, file, verbose):
+    captured = 0
+    while True:
+        if count > 0 and captured >= count:
+            break
+
+        packet = capture.next_packet()
+        if not packet:
+            raise ValueError("Packet was None")
+
+        proto, src, dst, ttl = parse_packet(packet)
+
+        if target_protocols and proto not in target_protocols:
+            continue
+
+        if file:
+            file.write(encoder.encode(packet))
+
+        if verbose:
+            print(f"{ttl:<6}{src:<18}{dst:<18}{proto:<10}")
+
+        captured += 1
+
+
 def main():
     args = parse_args()
     capture = PacketCapture()
@@ -121,27 +145,7 @@ def main():
         if verbose:
             print(f"{'TTL':<6}{'Source IP':<18}{'Destination IP':<18}{'Protocol':<10}")
 
-        captured = 0
-        while True:
-            if count > 0 and captured >= count:
-                break
-
-            packet = capture.next_packet()
-            if not packet:
-                raise ValueError("Packet was None")
-
-            proto, src, dst, ttl = parse_packet(packet)
-
-            if target_protocols and proto not in target_protocols:
-                continue
-
-            if f:
-                f.write(encoder.encode(packet))
-
-            if verbose:
-                print(f"{ttl:<6}{src:<18}{dst:<18}{proto:<10}")
-
-            captured += 1
+        proceed_capturing(count, capture, encoder, target_protocols, file, verbose)
 
         capture.stop()
         if f:
