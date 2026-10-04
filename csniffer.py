@@ -53,6 +53,13 @@ def parse_args():
         help="path to the file to write",
     )
 
+    parser.add_argument(
+        "--proto",
+        type=lambda s: s.upper(),
+        nargs="+",
+        help="filter packets by protocols (e.g --proto tcp, udp, icmp)",
+    )
+
     args = parser.parse_args()
 
     if not args.verbose and not args.output:
@@ -63,7 +70,7 @@ def parse_args():
     return args
 
 
-PROTOCOL_MAP = {
+BASE_PROTOCOL_MAP = {
     1: "ICMP",
     2: "IGMP",
     6: "TCP",
@@ -85,7 +92,7 @@ def parse_packet(packet: bytes):
     src_ip = socket.inet_ntoa(src_ip_bytes)
     dst_ip = socket.inet_ntoa(dst_ip_bytes)
 
-    proto_name = PROTOCOL_MAP.get(protocol, "UNKNOWN")
+    proto_name = BASE_PROTOCOL_MAP.get(protocol, "UNKNOWN")
 
     return proto_name, src_ip, dst_ip, ttl
 
@@ -98,9 +105,9 @@ def main():
     file = args.output
     if file:
         file = Path(file)
-
     count = args.count or 0
     verbose = args.verbose
+    target_protocols = [proto for proto in args.proto if args.proto]
 
     f = None
 
@@ -123,11 +130,15 @@ def main():
             if not packet:
                 raise ValueError("Packet was None")
 
+            proto, src, dst, ttl = parse_packet(packet)
+
+            if target_protocols and proto not in target_protocols:
+                continue
+
             if f:
                 f.write(encoder.encode(packet))
 
             if verbose:
-                proto, src, dst, ttl = parse_packet(packet)
                 print(f"{ttl:<6}{src:<18}{dst:<18}{proto:<10}")
 
             captured += 1
