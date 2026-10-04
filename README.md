@@ -24,3 +24,8 @@ Capture 10 packets and save them to a file:
 ```bash
 sudo ./csniffer.py -c 10 -o out.pcap
 ```
+
+Capture packets until keyboard interrupt in verbose mode:
+```bash
+sudo ./csniffer.py -v
+```
