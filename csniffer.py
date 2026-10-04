@@ -150,6 +150,8 @@ def main():
         capture.stop()
         if f:
             f.close()
+    except KeyboardInterrupt:
+        ...
 
     except (FileNotFoundError, ValueError, RuntimeError) as e:
         print(f"\nError: {e}", file=sys.stderr)
