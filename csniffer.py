@@ -69,7 +69,7 @@ def main():
 
             capture.start()
 
-            for _ in range(count):
+            for _ in range(int(count)):
                 packet = capture.next_packet()
                 if not packet:
                     raise ValueError("Packet was None")
