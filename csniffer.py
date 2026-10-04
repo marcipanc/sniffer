@@ -2,6 +2,8 @@
 """Console version of sniffer"""
 
 import argparse
+import socket
+import struct
 import sys
 from pathlib import Path
 
@@ -10,6 +12,8 @@ from src.pcap_encoder import PcapEncoder
 
 ERROR_EXCEPTION = 1
 ERROR_PYTHON_VERSION = 2
+
+ROW_TEMPLATE = "{ttl:<6}{src:<18}{dst:<18}{proto:<10}"
 
 if sys.version_info < (3, 12):
     print("Use python >= 3.12", file=sys.stderr)
@@ -56,12 +60,40 @@ def parse_args():
     return args
 
 
+PROTOCOL_MAP = {
+    1: "ICMP",
+    2: "IGMP",
+    6: "TCP",
+    17: "UDP",
+    47: "GRE",
+    50: "ESP",
+}
+
+
+def parse_packet(packet: bytes):
+    ip_header = packet[14:34]
+    unpacked = struct.unpack("!BBHHHBBH4s4s", ip_header)
+
+    ttl = unpacked[5]
+    protocol = unpacked[6]
+    src_ip_bytes = unpacked[8]
+    dst_ip_bytes = unpacked[9]
+
+    src_ip = socket.inet_ntoa(src_ip_bytes)
+    dst_ip = socket.inet_ntoa(dst_ip_bytes)
+
+    proto_name = PROTOCOL_MAP.get(protocol, "UNKNOWN")
+
+    return proto_name, src_ip, dst_ip, ttl
+
+
 def main():
     args = parse_args()
     capture = PacketCapture()
     encoder = PcapEncoder()
     file = Path(args.output)
     count = args.count
+    verbose = args.verbose
 
     try:
         with open(file, "wb") as f:
@@ -69,11 +101,20 @@ def main():
 
             capture.start()
 
+            if verbose:
+                print(
+                    f"{'TTL':<6}{'Source IP':<18}{'Destination IP':<18}{'Protocol':<10}"
+                )
+
             for _ in range(int(count)):
                 packet = capture.next_packet()
                 if not packet:
                     raise ValueError("Packet was None")
                 f.write(encoder.encode(packet))
+
+                if verbose:
+                    proto, src, dst, ttl = parse_packet(packet)
+                    print(f"{ttl:<6}{src:<18}{dst:<18}{proto:<10}")
 
             capture.stop()
 
