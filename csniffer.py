@@ -13,7 +13,10 @@ from src.pcap_encoder import PcapEncoder
 ERROR_EXCEPTION = 1
 ERROR_PYTHON_VERSION = 2
 
-ROW_TEMPLATE = "{ttl:<6}{src:<18}{dst:<18}{proto:<10}"
+ROW_TEMPLATE = (
+    "{ttl:<6}{src_ip:<18}{src_mac:<20}{src_port:<12}"
+    "{dst_ip:<18}{dst_mac:<20}{dst_port:<12}{proto:<10}"
+)
 
 if sys.version_info < (3, 12):
     print("Use python >= 3.12", file=sys.stderr)
@@ -81,6 +84,10 @@ BASE_PROTOCOL_MAP = {
 
 
 def parse_packet(packet: bytes):
+    ethernet_header = packet[:14]
+    dest_mac = ":".join(f"{b:02x}" for b in ethernet_header[:6])
+    source_mac = ":".join(f"{b:02x}" for b in ethernet_header[6:12])
+
     ip_header = packet[14:34]
     unpacked = struct.unpack("!BBHHHBBH4s4s", ip_header)
 
@@ -92,9 +99,19 @@ def parse_packet(packet: bytes):
     src_ip = socket.inet_ntoa(src_ip_bytes)
     dst_ip = socket.inet_ntoa(dst_ip_bytes)
 
+    header_length = (0x0F & ip_header[0]) * 4
+
+    transport_offset = 14 + header_length
+    transport = packet[transport_offset:]
+    if protocol in (6, 17):  # TCP, UDP
+        source_port = int.from_bytes(transport[:2], "big")
+        dest_port = int.from_bytes(transport[2:4], "big")
+    else:
+        source_port = dest_port = 0
+
     proto_name = BASE_PROTOCOL_MAP.get(protocol, "UNKNOWN")
 
-    return proto_name, src_ip, dst_ip, ttl
+    return proto_name, src_ip, source_mac, source_port, dst_ip, dest_mac, dest_port, ttl
 
 
 def proceed_capturing(count, capture, encoder, target_protocols, file, verbose):
@@ -107,16 +124,30 @@ def proceed_capturing(count, capture, encoder, target_protocols, file, verbose):
         if not packet:
             raise ValueError("Packet was None")
 
-        proto, src, dst, ttl = parse_packet(packet)
+        proto, src_ip, src_mac, src_port, dst_ip, dst_mac, dst_port, ttl = parse_packet(
+            packet
+        )
 
-        if target_protocols and proto not in target_protocols:
+        clean_target_protocols = [p.replace(",", "") for p in target_protocols]
+        if clean_target_protocols and proto not in clean_target_protocols:
             continue
 
         if file:
             file.write(encoder.encode(packet))
 
         if verbose:
-            print(f"{ttl:<6}{src:<18}{dst:<18}{proto:<10}")
+            print(
+                ROW_TEMPLATE.format(
+                    ttl=ttl,
+                    src_ip=src_ip,
+                    src_mac=src_mac,
+                    src_port=src_port,
+                    dst_ip=dst_ip,
+                    dst_mac=dst_mac,
+                    dst_port=dst_port,
+                    proto=proto,
+                )
+            )
 
         captured += 1
 
@@ -131,7 +162,7 @@ def main():
         file = Path(file)
     count = args.count or 0
     verbose = args.verbose
-    target_protocols = [proto for proto in args.proto] if args.proto else []
+    target_protocols = list(args.proto) if args.proto else []
 
     f = None
 
@@ -143,15 +174,23 @@ def main():
         capture.start()
 
         if verbose:
-            print(f"{'TTL':<6}{'Source IP':<18}{'Destination IP':<18}{'Protocol':<10}")
+            print(
+                ROW_TEMPLATE.format(
+                    ttl="TTL",
+                    src_ip="Source IP",
+                    src_mac="Source MAC",
+                    src_port="Src Port",
+                    dst_ip="Dest IP",
+                    dst_mac="Dest MAC",
+                    dst_port="Dst Port",
+                    proto="Protocol",
+                )
+            )
 
         proceed_capturing(count, capture, encoder, target_protocols, f, verbose)
 
-        capture.stop()
-        if f:
-            f.close()
     except KeyboardInterrupt:
-        ...
+        pass
 
     except (FileNotFoundError, ValueError, RuntimeError) as e:
         print(f"\nError: {e}", file=sys.stderr)
