@@ -1,4 +1,4 @@
-# Traffic Sniffer v0.1
+# Traffic Sniffer v0.2
 
 A CLI application designed to capture network traffic and save it in PCAP format
 
